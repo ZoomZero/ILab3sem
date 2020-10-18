@@ -1,10 +1,11 @@
-# ILab3sem
+# ILab 3sem
 ###### Intel
 ***Testing markdown format***
 ---
 > Кто ты?
 >
 > Загадка Жака Фреско
+*На размышление дается 30 секунд*
 ![На размышление дается 30 секунд](https://memepedia.ru/wp-content/uploads/2020/02/zhak-fresko-citaty-mem.png)
 ---
 
