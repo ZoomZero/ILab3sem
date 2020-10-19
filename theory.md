@@ -240,7 +240,7 @@ public:
 Как только вызовем конструктор с точным совпадением, он выиграет.  
 ### Имена искажаются не только входными и выходными типами, но ещё тем, чему принадлежит метод. Появляется концепция пространства имён.
 В С все имена принадлежат глобальному пространству имёню.
-**В С++ вся стандартная библиотека принадлежит к std. Исключения - старые хедера, наследованные из С, к примеру, <stdlib.h>. Чтобы завернуть в std, имеем новые хедера - <cstdlib>.**  
+**В С++ вся стандартная библиотека принадлежит к std. Исключения - старые хедера, наследованные из С, к примеру, <stdlib.h>. Чтобы завернуть в std, имеем новые хедера - cstdlib. **  
 *Мы не сможем написать свои имена в пространство стандартных имён.*  
 ### Мы можем создать свои пространства имён.
 ```
@@ -289,3 +289,239 @@ int main()
 ## Лекция 4
 
 **explicit конструкторы блокируют неявные преобразования типов.**
+При перегрузках в некоторых случаях надо заглядывать в стандарт языка. Компилятор находит viable кандидатов, а из них выбирает подходящий. И, в стандарте указано, что должна быть последовательность неявных преобразований.  
+
+### Конструкторы
+Используется для инициализации.
+**Приямая инициализация**
+```
+struct foo
+{
+  foo(int x) {}
+};
+foo f{2};
+foo f = 2; //инициализация копированием
+```
+Конструктор с одним аргументом определяет неявное преобразование типа, конструктор с двумя аргментами определяет неявное преобразование из списка инициализации двух аргументов.  
+**При прямой инциализации рассматриваются все конструкторы**  
+Если написать explicit foo(int x) {}, то не сможем инициализировать копированием. Поэтому стоит избегать explicit консрукторы без понимания.  
+#### Всё, что похоже на функцию, считается функцией в С++
+
+### Cписки инициализации
+Полезны при наличии аргументов.
+```
+template <typename T> struct Point2D
+{
+  T x_, y_;
+  Point2D(T x, T y): x_(x), y_(y) {}
+}
+```
+Лучше, чем
+```
+Point2D(T x, T y) {x_ = x, y_ = y;}
+```
+Надевая волшебные очки, увидим во втором случае(компилятор сделает так):
+```
+Point2D(t x, T y) x_(defx), y_(defy) { x_ = x, y_ = y;}
+```
+**Тривиальная инициализация**
+```
+template <typename T> class list_t
+{
+  node_t *top_, *back_;
+public:
+  list_t(): top_(nullptr), back_(nullptr) {}
+}
+//или
+template <typename T> class list_t
+{
+node *top_ = nullptr, *back_ = nullptr;
+}
+```
+**Почему тривиальная инициализация незаменима? - Константные члены и ссылки**
+```
+class Weirdo
+{
+  int &x_;
+  const int y_;
+public:
+  Weirdo(int &x) : x_(x), y_(42) {}
+}
+```
+#### Лучше не использовать члены-ссылки и константы
+
+#### Если конструкто делает нетривиальные вещи, его можно делигировать:
+```
+stuct class_c
+{
+  int max = 0, min = 0;
+  class_c(int my_max) {max = my_max > 0 ? my_max : 10; }
+  class_c(int my_max, int my_min) : clacc_c(my_max) {min = my_min > 0 && my_min < max ? my_min : 1;}
+}
+```
+### Деструкторы
+```
+template <typename T> class MyVector //так себе MyVector
+{
+  int size_, capacity_;
+  T* buf_;
+public:
+  MyVector(int cap = 0) : size_(0), capacity_(cap), buf_(new T[cap]) {} //лучше explicit
+
+  ~MyVector() {delete [] buf_;}
+}
+```
+**Бывает, пишут лишние обнуления:**
+```
+buf_ = nullptr;
+size_ = 0;
+capacity_ = 0;
+```
+**После отработки деструктора время жизни закончилось и поля принимают неопределённое состояние. Поэтому не нужны никакие обнуления.**  
+### Value initialization
+```
+{ //local scope
+  int a; //a undefined
+  int b{}; //b val-initializated, hence zero
+...
+int *pvs = new int[5]{}; //calloc
+```
+**Для C++ нет альтернативы realloc**
+Используем волшебные очки(с одним стеклом :D). Посмотрим на ПУСТОЙ класс.
+```
+class Empty
+{
+    Empty() {} //ctor
+    ~Empty() {} //dtor
+    Empty(const Empty&) {} //copy ctor
+    Empty& operator = (const Empty&) {} //assignment
+};
+```
+Все это и кое-что ещё генерирует компилятор.
+
+### Инициализация по умолчанию (default)
+```
+int x; //contains garbage
+
+struct foo{
+  int x;
+};
+foo f; //x contains garbage coz of default initialization
+```
+Сделаем так, чтобы не генерировался консруктор по умолчанию.
+```
+struct Bar
+{
+    int x;
+    Bar() : x(42) {}
+}
+Bar f; //x contains 42
+
+struct Buz {Bar f;}
+Buz b; //f.x contains 42
+```
+### Cемантика копирования
+```
+template <typename T> struct Point2D
+{
+    T x_, y_;
+    Point2D() : x_(defx), y_(defy) {} //ctor
+    ~Point2D() {} //dtor
+    Point2D(const Point2D& rhx) : x_(rhs.x_), y(rhs.y_) {} //copy ctor
+    Point2D& operator = (const Point2D& rhx) {x_ = rhs.x_; y_=rhx.y_; return *this;} //assignment
+};
+```
+**По умолчанию конструктор копирования и присваивания реализут побитовое копирование и присваивание.**  
+#### Компилятор может игнорировать побочные эффекты и пропускать копирование и присванивание, так как знает внутреннюю семантику - return value compilation
+
+**Главная форма консруктора копировария**
+```
+struct Copyable
+{
+  Copyable(const Copyable &c);
+}
+```
+Но вообще он может принимать и не константную ссылку, и даже как угодно cv-квалифицированную ссылку или значение.  
+
+### cv-квалификация
+```
+const int c = 34; //can't change
+volatile int v; //may unpredictable change at any moment
+const volatile int cv = 42; //we can't change it, but it can be changed somehow -> cv-квалификация
+
+int S::foo() const {return 42;} //we get const "this" here
+int S::bar() volatile {return 42;} //we get volatile this
+int S::buz() const volatile {return 42;} //similar
+
+volatile std::vector v; //we can create it but can't do anything
+```
+Не можем ничего сделать, так как можем применить методы, квалифированные только как volitile или const volatile.  
+**Недопустимая форма - шаблонный конструктор копирования. Комплиятор в таком случае сгенерирует консруктор по умолчанию.**  
+```
+template <typename T> struct Coercible
+{
+  template <typename U> Coercible(const Coercible<U> &c)
+  {
+    std::cout << "Hello!" << std::endl;
+  }
+};
+Coercible<void> a;
+Coercible<void> b{a}; //nothing on the screen (if U=T)
+
+Coercible<int> c{a}; //Hello!
+```
+**Отличие копирования от присваивания:**  
+В основном - способ инициализации. Присваивание - переписвание готоого объекта.  
+В операторе присваивания иногда нужно проверять
+```
+if (this != &rhs) ...
+```
+Можем объявлять дефолтный конструктор, чтобы компилятор скомпилировал именно его
+```
+Point() = default;
+```
+Это имеет смысл, когда есть какой-то недефолтный конструктор, но нужен ещё дефолтный.  
+
+### Владение ресурсом
+Консруктор копирования и оператор присваивания предназначены для передачи владения ресурсом. Так как, к примеру, при передаче указателя, мы передаём управление памятью.
+**Страшное goto**
+```
+if (cond)
+{
+  delete [] a;
+  result = FAILURE;
+  goto cleanup;
+}
+...//some code
+cleanup:
+  delete [] a;
+  return result;
+```
+**Социальное-приемлемое goto**
+```
+do
+{
+  if(cond)
+  {
+    delete [] a;
+    ...
+  }
+  ...
+} while(0)
+delete [] a;
+return result;
+```
+***На самом деле оба можно юзать))***  
+#### Чтобы не писать goto можно использовать технологию RAII: resourse asquisition is initialization
+```
+int foo(int n)
+{
+  Buffer a(n); //new called in creator
+  ...
+  if (cond) return FAILURE; //dtor called delete
+  ...
+  return SUCCESS; //dtor called delete
+}
+```
+
+## Лекция 5
