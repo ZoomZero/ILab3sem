@@ -19,6 +19,7 @@ namespace cache
     size_t max_cache_size;
 
   public:
+
     explicit LFUCache(size_t max_size) : max_cache_size(max_size)
     {
       if (max_cache_size == 0) max_cache_size = std::numeric_limits<size_t>::max();
@@ -138,8 +139,51 @@ namespace cache
         std::cout << std::endl;
       }
     }
+
+    std::map<int, std::list<Key>> GetFreqMap()
+    {
+      return freq_storage;
+    }
   };
 
+  template <class Key, class Value>
+  class Test
+  {
+  private:
+    std::map<int, std::list<Key>> check_map;
+  public:
+    Test()
+    {
+      std::map<int, std::list<Key>> check_map = LFUCache<Key, Value>::GetFreqMap();
+    }
+    ~Test() = default;
+
+    void ExpectingInCache(int freq, Key key)
+    {
+      int got_smth = 0;
+      for (auto i : check_map)
+      {
+        if (i.first == freq)
+        {
+          for (auto v : i.second)
+          {
+            if (v == key)
+            {
+              got_smth++;
+            }
+          }
+        }
+      }
+      if (got_smth == 0)
+      {
+        std::cout << "Check failed" << std::endl;
+      }
+      else
+      {
+        std::cout << "Check OK" << std::endl;
+      }
+    }
+  };
 }
 
 void ErrorCheck(bool err, const char * description)
