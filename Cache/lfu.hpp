@@ -17,10 +17,11 @@ namespace cache
     std::map<Key, std::pair<Value, int>> lfu_storage;
     std::map<int, std::list<Key>> freq_storage;
     size_t max_cache_size;
+    int hit;
 
   public:
 
-    explicit LFUCache(size_t max_size) : max_cache_size(max_size)
+    explicit LFUCache(size_t max_size) : max_cache_size(max_size), hit(0)
     {
       if (max_cache_size == 0) max_cache_size = std::numeric_limits<size_t>::max();
     }
@@ -29,9 +30,16 @@ namespace cache
 
     void Put(const Key key, Value val)
     {
-      if (lfu_storage.size() >= max_cache_size)
+      auto elem_it = lfu_storage.find(key);
+
+      if (elem_it != lfu_storage.end())
       {
-        Replace(key, val);
+        Get(key);
+        hit++;
+      }
+      else if (lfu_storage.size() >= max_cache_size)
+      {
+          Replace(key, val);
       }
       else
       {
@@ -51,8 +59,9 @@ namespace cache
       }
 
       (elem_it->second).second++;
-      std::cout << "Getting elem = " << (elem_it->second).first << " with freq = " << (elem_it->second).second
-      << " key = " << key << std::endl;
+      //std::cout << "Getting elem = " << (elem_it->second).first << " with freq = " << (elem_it->second).second
+      //<< " key = " << key << std::endl;
+
       Update(elem_it->first, (elem_it->second).second);
 
       return (elem_it->second).first;
@@ -72,6 +81,7 @@ namespace cache
 
       InsertElem(key, val);
       Get(key);
+
     }
 
     void Update(const Key key, int freq)
@@ -138,42 +148,25 @@ namespace cache
         }
         std::cout << std::endl;
       }
+      std::cout << "Hit = " << hit << std::endl;
     }
 
-    std::map<int, std::list<Key>> GetFreqMap()
+    int GetHit()
     {
-      return freq_storage;
+      return hit;
     }
   };
 
   template <class Key, class Value>
   class Test
   {
-  private:
-    std::map<int, std::list<Key>> check_map;
   public:
-    Test()
-    {
-      std::map<int, std::list<Key>> check_map = LFUCache<Key, Value>::GetFreqMap();
-    }
+    Test() = default;
     ~Test() = default;
 
     void ExpectingInCache(int freq, Key key)
     {
       int got_smth = 0;
-      for (auto i : check_map)
-      {
-        if (i.first == freq)
-        {
-          for (auto v : i.second)
-          {
-            if (v == key)
-            {
-              got_smth++;
-            }
-          }
-        }
-      }
       if (got_smth == 0)
       {
         std::cout << "Check failed" << std::endl;
@@ -188,11 +181,11 @@ namespace cache
 
 void ErrorCheck(bool err, const char * description)
 {
-	if(err)
-	{
-		perror(description);
-		exit(EXIT_FAILURE);
-	}
+  if(err)
+  {
+    printf("%s\n", description);
+    exit(EXIT_FAILURE);
+  }
 }
 
 #endif
