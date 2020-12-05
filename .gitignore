@@ -1,3 +1,4 @@
 *.o
 test_cache
 *.hpp.gch
+*.txt
